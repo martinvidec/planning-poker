@@ -1,8 +1,8 @@
 package at.videc.opensource.scrum.view;
 
-import at.videc.opensource.scrum.broadcast.Broadcaster;
+import at.videc.opensource.scrum.broadcast.BroadcastHelper;
 import at.videc.opensource.scrum.config.ApplicationProperties;
-import at.videc.opensource.scrum.state.Constants;
+import at.videc.opensource.scrum.state.StateConstants;
 import at.videc.opensource.scrum.view.base.BaseView;
 import com.vaadin.flow.component.AttachEvent;
 import com.vaadin.flow.component.DetachEvent;
@@ -42,7 +42,7 @@ public class MainView extends BaseView {
     private TextField playerNameField;
     private List<Button> estimateBtns = new ArrayList<>();
 
-    boolean showResults;
+    private boolean showResults;
 
     private Registration broadcasterRegistration;
 
@@ -66,8 +66,8 @@ public class MainView extends BaseView {
             estimateBtns.add(button);
         });
 
-        estimateBtns.add(new Button("?", event -> broadcast(Constants.NO_CLUE)));
-        estimateBtns.add(new Button(new Icon(VaadinIcon.COFFEE), event -> broadcast(Constants.COFFEE)));
+        estimateBtns.add(new Button("?", event -> broadcast(StateConstants.NO_CLUE)));
+        estimateBtns.add(new Button(new Icon(VaadinIcon.COFFEE), event -> broadcast(StateConstants.COFFEE)));
 
         estimateBtns.forEach(button -> buttons.add(button));
     }
@@ -82,12 +82,12 @@ public class MainView extends BaseView {
             }
             playerNameField.setReadOnly(true);
             estimateBtns.forEach(button -> button.setEnabled(true));
-            broadcast(Constants.PARTICIPATE);
+            broadcast(StateConstants.PARTICIPATE);
         });
 
-        Button showAllBtn = new Button("anzeigen", event -> broadcast(Constants.SHOW));
+        Button showAllBtn = new Button("anzeigen", event -> broadcast(StateConstants.SHOW));
 
-        Button clearAllBtn = new Button("löschen", event -> broadcast(Constants.CLEAR));
+        Button clearAllBtn = new Button("löschen", event -> broadcast(StateConstants.CLEAR));
 
         inputs.add(playerNameField, participateBtn, showAllBtn, clearAllBtn);
     }
@@ -105,7 +105,7 @@ public class MainView extends BaseView {
     @Override
     protected void onAttach(AttachEvent attachEvent) {
         UI ui = attachEvent.getUI();
-        broadcasterRegistration = Broadcaster.register(statePayload -> ui.access(() -> updateView(statePayload)));
+        broadcasterRegistration = BroadcastHelper.register(statePayload -> ui.access(() -> updateView(statePayload)));
     }
 
 
@@ -116,9 +116,9 @@ public class MainView extends BaseView {
     }
 
     private void updateView(String statePayload) {
-        String[] statePayloads = statePayload.split(Constants.PAYLOAD_DELIMITER);
-        String[] estimationPayloads = statePayloads[0].split(Constants.DELIMITER);
-        String[] controlPayloads = statePayloads[1].split(Constants.DELIMITER);
+        String[] statePayloads = statePayload.split(StateConstants.PAYLOAD_DELIMITER);
+        String[] estimationPayloads = statePayloads[0].split(StateConstants.DELIMITER);
+        String[] controlPayloads = statePayloads[1].split(StateConstants.DELIMITER);
 
         // first control payloads
         updateControlValues(controlPayloads);
@@ -132,11 +132,11 @@ public class MainView extends BaseView {
             if(controlPayload.isEmpty()) {
                 continue;
             }
-            String[] payload = controlPayload.split(Constants.KEY_VALUE_DELIMITER);
-            if (Constants.LOOKUP_MAP.get(Constants.COFFEE).equals(payload[0])) {
+            String[] payload = controlPayload.split(StateConstants.KEY_VALUE_DELIMITER);
+            if (StateConstants.LOOKUP_MAP.get(StateConstants.COFFEE).equals(payload[0])) {
                 coffeeBreakIcon.setVisible(Boolean.TRUE.toString().equals(payload[1]));
             }
-            if (Constants.LOOKUP_MAP.get(Constants.SHOW).equals(payload[0])) {
+            if (StateConstants.LOOKUP_MAP.get(StateConstants.SHOW).equals(payload[0])) {
                 showResults = Boolean.TRUE.toString().equals(payload[1]);
             }
         }
@@ -148,13 +148,13 @@ public class MainView extends BaseView {
             if(estimationPayload.isEmpty()) {
                 continue;
             }
-            String[] payload = estimationPayload.split(Constants.KEY_VALUE_DELIMITER);
+            String[] payload = estimationPayload.split(StateConstants.KEY_VALUE_DELIMITER);
             estimations.add(new Span((showResults ? payload[1] : "[DONE]") + " - " + payload[0]));
         }
     }
 
     private void broadcast(Float estimation) {
-        Broadcaster.broadcast(playerNameField.getValue() + Constants.KEY_VALUE_DELIMITER + estimation);
+        BroadcastHelper.broadcast(playerNameField.getValue() + StateConstants.KEY_VALUE_DELIMITER + estimation);
     }
 
 }

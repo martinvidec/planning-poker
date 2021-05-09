@@ -1,4 +1,3 @@
-
 # planning-poker
 ![Build Status](https://travis-ci.com/martinvidec/planning-poker.svg?branch=master)
 

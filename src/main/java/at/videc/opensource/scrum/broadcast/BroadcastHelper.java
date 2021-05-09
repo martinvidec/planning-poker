@@ -8,7 +8,7 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 import java.util.function.Consumer;
 
-public class Broadcaster {
+public class BroadcastHelper {
 
     private static Executor executor = Executors.newSingleThreadExecutor();
     private static LinkedList<Consumer<String>> listeners = new LinkedList<>();
@@ -18,7 +18,7 @@ public class Broadcaster {
         listeners.add(listener);
 
         return () -> {
-            synchronized (Broadcaster.class) {
+            synchronized (BroadcastHelper.class) {
                 listeners.remove(listener);
             }
         };

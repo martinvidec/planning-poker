@@ -3,7 +3,7 @@ package at.videc.opensource.scrum.state;
 import java.util.HashMap;
 import java.util.Map;
 
-public class Constants {
+public class StateConstants {
 
     public static final Float NO_CLUE = -1f;
     public static final Float COFFEE = -2f;
