@@ -8,6 +8,12 @@
     <artifactId>planning-poker</artifactId>
     <version>${revision}</version>
 
+    <scm>
+        <connection>scm:git:https://github.com/martinvidec/planning-poker</connection>
+        <developerConnection>scm:git:https://github.com/martinvidec/planning-poker</developerConnection>
+        <url>https://github.com/martinvidec/planning-poker</url>
+    </scm>
+
     <parent>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
@@ -146,6 +152,16 @@
                         </goals>
                     </execution>
                 </executions>
+            </plugin>
+
+            <!-- scm -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-scm-plugin</artifactId>
+                <version>1.11.2</version>
+                <configuration>
+                    <connectionType>developerConnection</connectionType>
+                </configuration>
             </plugin>
 
         </plugins>
