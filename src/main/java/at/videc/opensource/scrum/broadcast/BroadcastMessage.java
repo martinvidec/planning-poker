@@ -5,7 +5,6 @@ import at.videc.opensource.scrum.broadcast.constants.Action;
 
 public class BroadcastMessage {
 
-    private static class EmptyMessageObject implements MessageObject {}
     public static final MessageObject EMPTY_MESSAGE_OBJECT = new EmptyMessageObject();
 
     private final Action action;
@@ -30,4 +29,6 @@ public class BroadcastMessage {
     public MessageObject getMsgObject() {
         return msgObject;
     }
+
+    private static class EmptyMessageObject implements MessageObject {}
 }

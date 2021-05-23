@@ -1,11 +1,13 @@
 package at.videc.opensource.scrum.view;
 
-import at.videc.opensource.scrum.broadcast.*;
+import at.videc.opensource.scrum.broadcast.BroadcastMessage;
+import at.videc.opensource.scrum.broadcast.CoffeeBreak;
+import at.videc.opensource.scrum.broadcast.Estimation;
 import at.videc.opensource.scrum.broadcast.constants.Action;
 import at.videc.opensource.scrum.broadcast.helper.BroadcastHelper;
 import at.videc.opensource.scrum.config.ApplicationProperties;
 import at.videc.opensource.scrum.state.ApplicationStateDto;
-import at.videc.opensource.scrum.style.ApplicationStyle;
+import at.videc.opensource.scrum.style.StyleConstants;
 import at.videc.opensource.scrum.view.base.BaseView;
 import com.vaadin.flow.component.AttachEvent;
 import com.vaadin.flow.component.DetachEvent;
@@ -116,7 +118,7 @@ public class MainView extends BaseView {
     private void buildHeader() {
         coffeeBreakIcon = new Icon(VaadinIcon.COFFEE);
         coffeeBreakIcon.setId("pp-coffee-icon");
-        coffeeBreakIcon.addClassName(ApplicationStyle.BIG_ICON_CLASS);
+        coffeeBreakIcon.addClassName(StyleConstants.BIG_ICON_CLASS);
         coffeeBreakIcon.setVisible(false);
 
         LocalTime remainingTime = getRemainingTime();
