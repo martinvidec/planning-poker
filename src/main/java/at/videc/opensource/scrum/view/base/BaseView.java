@@ -15,11 +15,7 @@ public class BaseView extends Div {
      * @param r the method which should run on the UI
      */
     protected void updateUI(Runnable r) {
-        getUI().ifPresent(ui -> {
-            ui.access(() -> {
-                r.run();
-            });
-        });
+        getUI().ifPresent(ui -> ui.access(r::run));
     }
 
 }

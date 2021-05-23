@@ -1,14 +1,18 @@
 package at.videc.opensource.scrum.view;
 
-import at.videc.opensource.scrum.broadcast.BroadcastHelper;
+import at.videc.opensource.scrum.broadcast.*;
+import at.videc.opensource.scrum.broadcast.constants.Action;
+import at.videc.opensource.scrum.broadcast.helper.BroadcastHelper;
 import at.videc.opensource.scrum.config.ApplicationProperties;
-import at.videc.opensource.scrum.state.StateConstants;
+import at.videc.opensource.scrum.state.ApplicationStateDto;
+import at.videc.opensource.scrum.style.ApplicationStyle;
 import at.videc.opensource.scrum.view.base.BaseView;
 import com.vaadin.flow.component.AttachEvent;
 import com.vaadin.flow.component.DetachEvent;
 import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.dependency.CssImport;
+import com.vaadin.flow.component.dependency.JavaScript;
 import com.vaadin.flow.component.html.H1;
 import com.vaadin.flow.component.html.H2;
 import com.vaadin.flow.component.html.H3;
@@ -25,13 +29,19 @@ import com.vaadin.flow.theme.Theme;
 import com.vaadin.flow.theme.material.Material;
 import org.springframework.beans.factory.annotation.Autowired;
 
+import java.time.LocalTime;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
 
 @Route("")
 @Theme(value = Material.class, variant = Material.DARK)
 @CssImport("./styles/planning-poker.css")
+@JavaScript("./js/countdown.js")
 @Push
 public class MainView extends BaseView {
+
+    private ApplicationProperties properties;
+    private ApplicationStateDto applicationStateDto;
 
     private HorizontalLayout header = new HorizontalLayout();
     private HorizontalLayout inputs = new HorizontalLayout();
@@ -41,16 +51,20 @@ public class MainView extends BaseView {
     private Icon coffeeBreakIcon;
     private TextField playerNameField;
     private List<Button> estimateBtns = new ArrayList<>();
+    private Span coffeeBreakDurationSpan;
 
     private boolean showResults;
+    private boolean coffeeBreakRunning;
 
     private Registration broadcasterRegistration;
 
     @Autowired
     public MainView(ApplicationProperties properties) {
+        this.properties = properties;
+
         buildHeader();
         buildInputs();
-        buildEstimations(properties);
+        buildEstimations();
         buildLayout();
     }
 
@@ -58,18 +72,20 @@ public class MainView extends BaseView {
         add(inputs, new H3("Schätzung"), buttons, new H2("Ergebnisse:"), estimations);
     }
 
-    private void buildEstimations(ApplicationProperties properties) {
+    private void buildEstimations() {
         Arrays.stream(properties.getEstimates()).forEach(value -> {
             Button button = new Button(String.valueOf(value));
-            button.setEnabled(false);
             button.addClickListener(event -> broadcast(value));
             estimateBtns.add(button);
         });
 
-        estimateBtns.add(new Button("?", event -> broadcast(StateConstants.NO_CLUE)));
-        estimateBtns.add(new Button(new Icon(VaadinIcon.COFFEE), event -> broadcast(StateConstants.COFFEE)));
+        estimateBtns.add(new Button("?", event -> broadcast(Action.NO_CLUE)));
+        estimateBtns.add(new Button(new Icon(VaadinIcon.COFFEE), event -> broadcast(Action.COFFEE)));
 
-        estimateBtns.forEach(button -> buttons.add(button));
+        estimateBtns.forEach(button -> {
+            button.setEnabled(false);
+            buttons.add(button);
+        });
     }
 
     private void buildInputs() {
@@ -82,32 +98,49 @@ public class MainView extends BaseView {
             }
             playerNameField.setReadOnly(true);
             estimateBtns.forEach(button -> button.setEnabled(true));
-            broadcast(StateConstants.PARTICIPATE);
+            initClientApplicationState();
+            broadcast(Action.PARTICIPATE);
         });
 
-        Button showAllBtn = new Button("anzeigen", event -> broadcast(StateConstants.SHOW));
-
-        Button clearAllBtn = new Button("löschen", event -> broadcast(StateConstants.CLEAR));
+        Button showAllBtn = new Button("anzeigen", event -> broadcast(Action.SHOW));
+        Button clearAllBtn = new Button("löschen", event -> broadcast(Action.CLEAR));
 
         inputs.add(playerNameField, participateBtn, showAllBtn, clearAllBtn);
     }
 
+    private void initClientApplicationState() {
+        applicationStateDto = new ApplicationStateDto();
+        applicationStateDto.setPlayerName(playerNameField.getValue());
+    }
+
     private void buildHeader() {
         coffeeBreakIcon = new Icon(VaadinIcon.COFFEE);
-        coffeeBreakIcon.setSize("3rem");
+        coffeeBreakIcon.setId("pp-coffee-icon");
+        coffeeBreakIcon.addClassName(ApplicationStyle.BIG_ICON_CLASS);
         coffeeBreakIcon.setVisible(false);
 
-        header.add(new H1("Planning Poker"), coffeeBreakIcon);
+        LocalTime remainingTime = getRemainingTime();
+
+        coffeeBreakDurationSpan = new Span();
+        coffeeBreakDurationSpan.setId("pp-coffee-countdown");
+        coffeeBreakDurationSpan.setText(String.format("%02d:%02d", remainingTime.getMinute(), remainingTime.getSecond()));
+        coffeeBreakDurationSpan.setVisible(false);
+
+        header.add(new H1("Planning Poker"), coffeeBreakIcon, coffeeBreakDurationSpan);
 
         add(header);
     }
 
-    @Override
-    protected void onAttach(AttachEvent attachEvent) {
-        UI ui = attachEvent.getUI();
-        broadcasterRegistration = BroadcastHelper.register(statePayload -> ui.access(() -> updateView(statePayload)));
+    private LocalTime getRemainingTime() {
+        LocalTime now = LocalTime.now();
+        LocalTime targetTime = now.plusSeconds(properties.getCoffeeBreakDuration());
+        return targetTime.minusSeconds(now.toSecondOfDay());
     }
 
+    @Override
+    protected void onAttach(AttachEvent attachEvent) {
+        broadcasterRegistration = BroadcastHelper.register(stateDto -> updateView(stateDto, attachEvent.getUI()));
+    }
 
     @Override
     protected void onDetach(DetachEvent detachEvent) {
@@ -115,46 +148,75 @@ public class MainView extends BaseView {
         broadcasterRegistration = null;
     }
 
-    private void updateView(String statePayload) {
-        String[] statePayloads = statePayload.split(StateConstants.PAYLOAD_DELIMITER);
-        String[] estimationPayloads = statePayloads[0].split(StateConstants.DELIMITER);
-        String[] controlPayloads = statePayloads[1].split(StateConstants.DELIMITER);
+    private void updateView(ApplicationStateDto applicationStateDto, UI ui) {
+        String playerName = this.applicationStateDto.getPlayerName();
+        this.applicationStateDto = applicationStateDto;
+        this.applicationStateDto.setPlayerName(playerName);
 
-        // first control payloads
-        updateControlValues(controlPayloads);
+        ui.access(() -> {
+            // first control payloads
+            updateControlValues(applicationStateDto.getControlValues());
+            // then estimation payloads
+            updateEstimations(applicationStateDto.getEstimationValues());
 
-        // then estimation payloads
-        updateEstimations(estimationPayloads);
+            if(Boolean.TRUE.equals(applicationStateDto.getControlValues().get(Action.COFFEE)) && !coffeeBreakRunning) {
+                // start timer
+                ui.getPage().executeJs("window.pp.startCountdown($0,$1,$2)",
+                        DateTimeFormatter.ISO_DATE_TIME.format(applicationStateDto.getTargetTime()),
+                        coffeeBreakDurationSpan.getId().get(),
+                        "Finished");
+                coffeeBreakRunning = true;
+            } else if(Boolean.FALSE.equals(applicationStateDto.getControlValues().get(Action.COFFEE)) && coffeeBreakRunning){
+                // remove timer only when running
+                ui.getPage().executeJs("pp.cancelCountdown()");
+                coffeeBreakRunning = false;
+            }
+        });
     }
 
-    private void updateControlValues(String[] controlPayloads) {
-        for (String controlPayload : controlPayloads) {
-            if(controlPayload.isEmpty()) {
-                continue;
-            }
-            String[] payload = controlPayload.split(StateConstants.KEY_VALUE_DELIMITER);
-            if (StateConstants.LOOKUP_MAP.get(StateConstants.COFFEE).equals(payload[0])) {
-                coffeeBreakIcon.setVisible(Boolean.TRUE.toString().equals(payload[1]));
-            }
-            if (StateConstants.LOOKUP_MAP.get(StateConstants.SHOW).equals(payload[0])) {
-                showResults = Boolean.TRUE.toString().equals(payload[1]);
+    private void updateControlValues(Map<Action, Boolean> controlPayloads) {
+        for (Map.Entry<Action, Boolean> entry: controlPayloads.entrySet()) {
+            switch (entry.getKey()) {
+                case COFFEE:
+                    boolean haveCoffeBreak = entry.getValue();
+                    coffeeBreakIcon.setVisible(haveCoffeBreak);
+                    coffeeBreakDurationSpan.setVisible(haveCoffeBreak);
+                    break;
+                case SHOW:
+                    showResults = entry.getValue();
+                    break;
+                default:
+                    break;
             }
         }
     }
 
-    private void updateEstimations(String[] estimationPayloads) {
+    private void updateEstimations(Map<String, Float> estimationPayloads) {
         estimations.removeAll();
-        for (String estimationPayload : estimationPayloads) {
-            if(estimationPayload.isEmpty()) {
+        for (Map.Entry<String, Float> entry : estimationPayloads.entrySet()) {
+            if(entry.getValue() == null) {
                 continue;
             }
-            String[] payload = estimationPayload.split(StateConstants.KEY_VALUE_DELIMITER);
-            estimations.add(new Span((showResults ? payload[1] : "[DONE]") + " - " + payload[0]));
+            estimations.add(new Span((showResults ? entry.getValue() : "[DONE]") + " - " + entry.getKey()));
         }
     }
 
     private void broadcast(Float estimation) {
-        BroadcastHelper.broadcast(playerNameField.getValue() + StateConstants.KEY_VALUE_DELIMITER + estimation);
+        BroadcastMessage broadcastMessage = new BroadcastMessage(Action.ESTIMATE, new Estimation(playerNameField.getValue(), estimation));
+        BroadcastHelper.broadcast(broadcastMessage);
+    }
+
+    private void broadcast(Action action) {
+        BroadcastMessage broadcastMessage;
+
+        // TODO refactor
+        if(action != Action.COFFEE) {
+            broadcastMessage = new BroadcastMessage(action, BroadcastMessage.EMPTY_MESSAGE_OBJECT);
+        } else {
+            broadcastMessage = new BroadcastMessage(action, new CoffeeBreak(properties.getCoffeeBreakDuration()));
+        }
+
+        BroadcastHelper.broadcast(broadcastMessage);
     }
 
 }
