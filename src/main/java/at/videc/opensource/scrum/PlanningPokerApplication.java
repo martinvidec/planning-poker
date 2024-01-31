@@ -9,10 +9,10 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 @SpringBootApplication
 @EnableVaadin
 @EnableConfigurationProperties(ApplicationProperties.class)
-public class Application {
+public class PlanningPokerApplication {
 
     public static void main(String[] args) {
-        SpringApplication.run(Application.class, args);
+        SpringApplication.run(PlanningPokerApplication.class, args);
     }
 
 }

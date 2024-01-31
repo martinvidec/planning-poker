@@ -15,10 +15,7 @@ import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.dependency.CssImport;
 import com.vaadin.flow.component.dependency.JavaScript;
-import com.vaadin.flow.component.html.H1;
-import com.vaadin.flow.component.html.H2;
-import com.vaadin.flow.component.html.H3;
-import com.vaadin.flow.component.html.Span;
+import com.vaadin.flow.component.html.*;
 import com.vaadin.flow.component.icon.Icon;
 import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
@@ -71,18 +68,39 @@ public class MainView extends BaseView {
     }
 
     private void buildLayout() {
-        add(inputs, new H3("Schätzung"), buttons, new H2("Ergebnisse:"), estimations);
+        add(inputs, header, buttons, new H3("Ergebnisse:"), estimations);
     }
 
     private void buildEstimations() {
         Arrays.stream(properties.getEstimates()).forEach(value -> {
-            Button button = new Button(String.valueOf(value));
+            String label = String.valueOf(value);
+            String sanitizedLabel = label.replace(".", "_");
+            Button button = new Button(label);
+            button.getStyle().set("background-image", "url(\"img/" + sanitizedLabel + ".png\")");
+            button.getClassNames().add("pp-card");
+            button.setId("estimate_btn_" + sanitizedLabel);
+            button.setWidth(properties.getCardWidth());
+            button.setHeight(properties.getCardHeight());
             button.addClickListener(event -> broadcast(value));
             estimateBtns.add(button);
         });
 
-        estimateBtns.add(new Button("?", event -> broadcast(Action.NO_CLUE)));
-        estimateBtns.add(new Button(new Icon(VaadinIcon.COFFEE), event -> broadcast(Action.COFFEE)));
+        Button noClueBtn = new Button("?", event -> broadcast(Action.NO_CLUE));
+        noClueBtn.getStyle().set("background-image", "url(\"img/no_clue.png\")");
+        noClueBtn.getClassNames().add("pp-card");
+        noClueBtn.setId("estimate_btn_no_clue");
+        noClueBtn.setWidth(properties.getCardWidth());
+        noClueBtn.setHeight(properties.getCardHeight());
+
+        Button coffeeBtn = new Button(" ", event -> broadcast(Action.COFFEE));
+        coffeeBtn.getStyle().set("background-image", "url(\"img/coffee.png\")");
+        coffeeBtn.getClassNames().add("pp-card");
+        coffeeBtn.setId("estimate_btn_coffee");
+        coffeeBtn.setWidth(properties.getCardWidth());
+        coffeeBtn.setHeight(properties.getCardHeight());
+
+        estimateBtns.add(noClueBtn);
+        estimateBtns.add(coffeeBtn);
 
         estimateBtns.forEach(button -> {
             button.setEnabled(false);
@@ -107,15 +125,6 @@ public class MainView extends BaseView {
         Button showAllBtn = new Button("anzeigen", event -> broadcast(Action.SHOW));
         Button clearAllBtn = new Button("löschen", event -> broadcast(Action.CLEAR));
 
-        inputs.add(playerNameField, participateBtn, showAllBtn, clearAllBtn);
-    }
-
-    private void initClientApplicationState() {
-        applicationStateDto = new ApplicationStateDto();
-        applicationStateDto.setPlayerName(playerNameField.getValue());
-    }
-
-    private void buildHeader() {
         coffeeBreakIcon = new Icon(VaadinIcon.COFFEE);
         coffeeBreakIcon.setId("pp-coffee-icon");
         coffeeBreakIcon.addClassName(StyleConstants.BIG_ICON_CLASS);
@@ -128,9 +137,16 @@ public class MainView extends BaseView {
         coffeeBreakDurationSpan.setText(String.format("%02d:%02d", remainingTime.getMinute(), remainingTime.getSecond()));
         coffeeBreakDurationSpan.setVisible(false);
 
-        header.add(new H1("Planning Poker"), coffeeBreakIcon, coffeeBreakDurationSpan);
+        inputs.add(playerNameField, participateBtn, showAllBtn, clearAllBtn, coffeeBreakIcon, coffeeBreakDurationSpan);
+    }
 
-        add(header);
+    private void initClientApplicationState() {
+        applicationStateDto = new ApplicationStateDto();
+        applicationStateDto.setPlayerName(playerNameField.getValue());
+    }
+
+    private void buildHeader() {
+        header.add(new H1("Planning Poker"));
     }
 
     private LocalTime getRemainingTime() {
