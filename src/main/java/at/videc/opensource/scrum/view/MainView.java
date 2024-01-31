@@ -3,6 +3,7 @@ package at.videc.opensource.scrum.view;
 import at.videc.opensource.scrum.broadcast.BroadcastMessage;
 import at.videc.opensource.scrum.broadcast.CoffeeBreak;
 import at.videc.opensource.scrum.broadcast.Estimation;
+import at.videc.opensource.scrum.broadcast.NoClue;
 import at.videc.opensource.scrum.broadcast.constants.Action;
 import at.videc.opensource.scrum.broadcast.helper.BroadcastHelper;
 import at.videc.opensource.scrum.config.ApplicationProperties;
@@ -231,11 +232,16 @@ public class MainView extends BaseView {
     private void broadcast(Action action) {
         BroadcastMessage broadcastMessage;
 
-        // TODO refactor
-        if(action != Action.COFFEE) {
-            broadcastMessage = new BroadcastMessage(action, BroadcastMessage.EMPTY_MESSAGE_OBJECT);
-        } else {
-            broadcastMessage = new BroadcastMessage(action, new CoffeeBreak(properties.getCoffeeBreakDuration()));
+        switch (action) {
+            case COFFEE:
+                broadcastMessage = new BroadcastMessage(action, new CoffeeBreak(properties.getCoffeeBreakDuration()));
+                break;
+            case NO_CLUE:
+                broadcastMessage = new BroadcastMessage(action, new NoClue(playerNameField.getValue()));
+                break;
+            default:
+                broadcastMessage = new BroadcastMessage(action, BroadcastMessage.EMPTY_MESSAGE_OBJECT);
+                break;
         }
 
         BroadcastHelper.broadcast(broadcastMessage);

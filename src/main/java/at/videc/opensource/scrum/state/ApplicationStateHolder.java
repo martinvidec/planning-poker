@@ -1,5 +1,6 @@
 package at.videc.opensource.scrum.state;
 
+import at.videc.opensource.scrum.broadcast.NoClue;
 import at.videc.opensource.scrum.broadcast.constants.Action;
 import at.videc.opensource.scrum.broadcast.CoffeeBreak;
 import at.videc.opensource.scrum.broadcast.Estimation;
@@ -39,8 +40,9 @@ public class ApplicationStateHolder {
                 );
                 return;
             case NO_CLUE:
+                NoClue noClue = (NoClue) broadcastMessage.getMsgObject();
                 applicationStateDto.getEstimationValues().put(
-                        applicationStateDto.getPlayerName(),
+                        noClue.getPlayerName(),
                         -1.0f
                 );
                 return;
