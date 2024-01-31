@@ -123,7 +123,7 @@ public class MainView extends BaseView {
         });
 
         Button showAllBtn = new Button("anzeigen", event -> broadcast(Action.SHOW));
-        Button clearAllBtn = new Button("löschen", event -> broadcast(Action.CLEAR));
+        Button clearAllBtn = new Button("zurücksetzen", event -> broadcast(Action.CLEAR));
 
         coffeeBreakIcon = new Icon(VaadinIcon.COFFEE);
         coffeeBreakIcon.setId("pp-coffee-icon");
@@ -213,6 +213,10 @@ public class MainView extends BaseView {
         estimations.removeAll();
         for (Map.Entry<String, Float> entry : estimationPayloads.entrySet()) {
             if(entry.getValue() == null) {
+                continue;
+            }
+            if(entry.getValue() == -1.0f) { // no clue
+                estimations.add(new Span((showResults ? "?" : "[DONE]") + " - " + entry.getKey()));
                 continue;
             }
             estimations.add(new Span((showResults ? entry.getValue() : "[DONE]") + " - " + entry.getKey()));

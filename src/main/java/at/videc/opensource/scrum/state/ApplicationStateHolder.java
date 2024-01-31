@@ -38,6 +38,12 @@ public class ApplicationStateHolder {
                         estimation.getEstimated()
                 );
                 return;
+            case NO_CLUE:
+                applicationStateDto.getEstimationValues().put(
+                        applicationStateDto.getPlayerName(),
+                        -1.0f
+                );
+                return;
             case COFFEE:
                 CoffeeBreak coffeeBreak = (CoffeeBreak) broadcastMessage.getMsgObject();
                 applicationStateDto.setTargetTime(LocalDateTime.now().plus(coffeeBreak.getDuration(), ChronoUnit.SECONDS));
