@@ -10,18 +10,17 @@ import at.videc.opensource.scrum.config.ApplicationProperties;
 import at.videc.opensource.scrum.state.ApplicationStateDto;
 import at.videc.opensource.scrum.style.StyleConstants;
 import at.videc.opensource.scrum.view.base.BaseView;
-import com.vaadin.flow.component.AttachEvent;
-import com.vaadin.flow.component.DetachEvent;
-import com.vaadin.flow.component.UI;
+import com.vaadin.flow.component.*;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.dependency.CssImport;
 import com.vaadin.flow.component.dependency.JavaScript;
+import com.vaadin.flow.component.grid.Grid;
 import com.vaadin.flow.component.html.*;
 import com.vaadin.flow.component.icon.Icon;
 import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
-import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.page.Push;
+import com.vaadin.flow.component.splitlayout.SplitLayout;
 import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.router.Route;
 import com.vaadin.flow.shared.Registration;
@@ -32,25 +31,37 @@ import org.springframework.beans.factory.annotation.Autowired;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
+import java.util.stream.Collectors;
 
+/**
+ * The main view of the application.<br/>
+ * For styling Shadow-DOM componets with CSS see:<br/>
+ * see <a href="https://vaadin.com/api/platform/14.10.10/com/vaadin/flow/component/splitlayout/SplitLayout.html">https://vaadin.com/api/platform/14.10.10/com/vaadin/flow/component/splitlayout/SplitLayout.html</a><br/>
+ * and <a href="https://github.com/vaadin/vaadin-themable-mixin#readme">https://github.com/vaadin/vaadin-themable-mixin#readme</a><br/>
+ * and <a href="https://vaadin.com/docs/v14/flow/styling/importing-style-sheets">https://vaadin.com/docs/v14/flow/styling/importing-style-sheets</a><br/>
+ */
 @Route("")
-@Theme(value = Material.class, variant = Material.DARK)
-@CssImport("./styles/planning-poker.css")
 @JavaScript("./js/countdown.js")
+@Theme(value = Material.class, variant = Material.DARK)
+@CssImport(value = "./styles/planning-poker.css")
+@CssImport(value = "./styles/planning-poker-mixin.css", themeFor = "vaadin-split-layout")
 @Push
 public class MainView extends BaseView {
 
+    public static final String PP_COFFEE_ICON_ID = "pp-coffee-icon";
+    public static final String PP_COFFEE_COUNTDOWN_ID = "pp-coffee-countdown";
+    public static final String PP_COFFEE_COUNTDOWN_FORMAT = "%02d:%02d";
     private ApplicationProperties properties;
     private ApplicationStateDto applicationStateDto;
 
     private HorizontalLayout header = new HorizontalLayout();
     private HorizontalLayout inputs = new HorizontalLayout();
     private HorizontalLayout buttons = new HorizontalLayout();
-    private VerticalLayout estimations = new VerticalLayout();
+    private Grid<EstimationResult> estimationGrid;
+    private List<Button> estimateBtns = new ArrayList<>();
 
     private Icon coffeeBreakIcon;
     private TextField playerNameField;
-    private List<Button> estimateBtns = new ArrayList<>();
     private Span coffeeBreakDurationSpan;
 
     private boolean showResults;
@@ -65,48 +76,71 @@ public class MainView extends BaseView {
         buildHeader();
         buildInputs();
         buildEstimations();
+        buildEstimationGrid();
         buildLayout();
     }
 
     private void buildLayout() {
-        add(inputs, header, buttons, new H3("Ergebnisse:"), estimations);
+        Div pokerBoard = new Div();
+        pokerBoard.setId("pp-poker-board");
+        pokerBoard.getClassNames().add(StyleConstants.POKER_BOARD_CLASS);
+        pokerBoard.add(inputs, header, buttons);
+
+        SplitLayout splitLayout = new SplitLayout(pokerBoard, estimationGrid);
+        splitLayout.setId("pp-split-layout");
+        splitLayout.setOrientation(SplitLayout.Orientation.VERTICAL);
+        splitLayout.setSizeFull();
+
+        add(splitLayout);
+
+        setSizeFull();
+    }
+
+    private void buildEstimationGrid() {
+        estimationGrid = new Grid<>();
+        estimationGrid.setId("pp-estimation-grid");
+        estimationGrid.setItems(Collections.emptySet());
+        estimationGrid.addColumn(EstimationResult::getPlayerName).setHeader("Spieler").setFooter(createPlayerFooter());
+        estimationGrid.addColumn(EstimationResult::getResult).setHeader("Schätzung").setFooter(createResultFooter()).setSortable(true);
+        estimationGrid.getColumns().forEach(column -> column.setAutoWidth(true));
+    }
+
+    private String createPlayerFooter() {
+        return (applicationStateDto == null ? "0" : applicationStateDto.getEstimationValues().size()) + " Spieler haben geschätzt.";
+    }
+
+    private String createResultFooter() {
+        return !showResults ? "Warte auf Spieler." : (applicationStateDto == null ? "0.0" : applicationStateDto.getEstimationValues().values().stream().collect(Collectors.averagingDouble(value -> value.doubleValue() == -1.0 ? 0.0 : value.doubleValue())).toString()) + " Storypoints durchschnittlich.";
     }
 
     private void buildEstimations() {
         Arrays.stream(properties.getEstimates()).forEach(value -> {
             String label = String.valueOf(value);
-            String sanitizedLabel = label.replace(".", "_");
-            Button button = new Button(label);
-            button.getStyle().set("background-image", "url(\"img/" + sanitizedLabel + ".png\")");
-            button.getClassNames().add("pp-card");
-            button.setId("estimate_btn_" + sanitizedLabel);
-            button.setWidth(properties.getCardWidth());
-            button.setHeight(properties.getCardHeight());
-            button.addClickListener(event -> broadcast(value));
-            estimateBtns.add(button);
+            estimateBtns.add(buildCardButton(label, event -> broadcast(value)));
         });
-
-        Button noClueBtn = new Button("?", event -> broadcast(Action.NO_CLUE));
-        noClueBtn.getStyle().set("background-image", "url(\"img/no_clue.png\")");
-        noClueBtn.getClassNames().add("pp-card");
-        noClueBtn.setId("estimate_btn_no_clue");
-        noClueBtn.setWidth(properties.getCardWidth());
-        noClueBtn.setHeight(properties.getCardHeight());
-
-        Button coffeeBtn = new Button(" ", event -> broadcast(Action.COFFEE));
-        coffeeBtn.getStyle().set("background-image", "url(\"img/coffee.png\")");
-        coffeeBtn.getClassNames().add("pp-card");
-        coffeeBtn.setId("estimate_btn_coffee");
-        coffeeBtn.setWidth(properties.getCardWidth());
-        coffeeBtn.setHeight(properties.getCardHeight());
-
-        estimateBtns.add(noClueBtn);
-        estimateBtns.add(coffeeBtn);
+        estimateBtns.add(buildCardButton("?", "no_clue", event -> broadcast(Action.NO_CLUE)));
+        estimateBtns.add(buildCardButton(" ", "coffee", event -> broadcast(Action.COFFEE)));
 
         estimateBtns.forEach(button -> {
             button.setEnabled(false);
             buttons.add(button);
         });
+    }
+
+    private Button buildCardButton(String label, ComponentEventListener<ClickEvent<Button>> eventListener) {
+        String sanitizedLabel = label.replace(".", "_");
+        return buildCardButton(label, sanitizedLabel, eventListener);
+    }
+
+    private Button buildCardButton(String label, String sanitizedLabel, ComponentEventListener<ClickEvent<Button>> eventListener) {
+        Button button = new Button(label);
+        button.getStyle().set("background-image", "url(\"img/" + sanitizedLabel + ".png\")");
+        button.getClassNames().add(StyleConstants.CARD_BUTTON_CLASS);
+        button.setId("pp-estimate_btn_" + sanitizedLabel);
+        button.setWidth(properties.getCardWidth());
+        button.setHeight(properties.getCardHeight());
+        button.addClickListener(eventListener);
+        return button;
     }
 
     private void buildInputs() {
@@ -127,15 +161,15 @@ public class MainView extends BaseView {
         Button clearAllBtn = new Button("zurücksetzen", event -> broadcast(Action.CLEAR));
 
         coffeeBreakIcon = new Icon(VaadinIcon.COFFEE);
-        coffeeBreakIcon.setId("pp-coffee-icon");
+        coffeeBreakIcon.setId(PP_COFFEE_ICON_ID);
         coffeeBreakIcon.addClassName(StyleConstants.BIG_ICON_CLASS);
         coffeeBreakIcon.setVisible(false);
 
         LocalTime remainingTime = getRemainingTime();
 
         coffeeBreakDurationSpan = new Span();
-        coffeeBreakDurationSpan.setId("pp-coffee-countdown");
-        coffeeBreakDurationSpan.setText(String.format("%02d:%02d", remainingTime.getMinute(), remainingTime.getSecond()));
+        coffeeBreakDurationSpan.setId(PP_COFFEE_COUNTDOWN_ID);
+        coffeeBreakDurationSpan.setText(String.format(PP_COFFEE_COUNTDOWN_FORMAT, remainingTime.getMinute(), remainingTime.getSecond()));
         coffeeBreakDurationSpan.setVisible(false);
 
         inputs.add(playerNameField, participateBtn, showAllBtn, clearAllBtn, coffeeBreakIcon, coffeeBreakDurationSpan);
@@ -211,17 +245,13 @@ public class MainView extends BaseView {
     }
 
     private void updateEstimations(Map<String, Float> estimationPayloads) {
-        estimations.removeAll();
-        for (Map.Entry<String, Float> entry : estimationPayloads.entrySet()) {
-            if(entry.getValue() == null) {
-                continue;
-            }
-            if(entry.getValue() == -1.0f) { // no clue
-                estimations.add(new Span((showResults ? "?" : "[DONE]") + " - " + entry.getKey()));
-                continue;
-            }
-            estimations.add(new Span((showResults ? entry.getValue() : "[DONE]") + " - " + entry.getKey()));
-        }
+        estimationGrid.setItems(
+                estimationPayloads.entrySet().stream()
+                        .map(entry -> new EstimationResult(entry.getKey(), entry.getValue()))
+        );
+        // TODO: update footer via event directly from grid when items change
+        estimationGrid.getColumns().get(0).setFooter(createPlayerFooter());
+        estimationGrid.getColumns().get(1).setFooter(createResultFooter());
     }
 
     private void broadcast(Float estimation) {
@@ -245,6 +275,25 @@ public class MainView extends BaseView {
         }
 
         BroadcastHelper.broadcast(broadcastMessage);
+    }
+
+    private class EstimationResult {
+        private final String playerName;
+
+        private final Float estimation;
+
+        public EstimationResult(String playerName, Float estimation) {
+            this.playerName = playerName;
+            this.estimation = estimation;
+        }
+
+        public String getPlayerName() {
+            return playerName;
+        }
+
+        public String getResult() {
+            return showResults ? estimation == -1 ? "?" : estimation.toString() : "[DONE]";
+        }
     }
 
 }

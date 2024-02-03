@@ -5,7 +5,8 @@ import com.vaadin.flow.component.html.Div;
 public class BaseView extends Div {
 
     public BaseView () {
-        setClassName("scrum-" + this.getClass().getSimpleName().toLowerCase());
+        setId("pp-" + this.getClass().getSimpleName().toLowerCase());
+        setClassName("pp-" + this.getClass().getSimpleName().toLowerCase());
     }
 
     /**

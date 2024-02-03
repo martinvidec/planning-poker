@@ -1,0 +1,11 @@
+
+[part = "splitter"] {
+    background-color: transparent;
+    border-bottom: 1px solid var(--material-secondary-background-color);
+    border-top: 1px solid var(--material-secondary-background-color);
+    min-height: 2px;
+}
+
+[part = "handle"]::after {
+    background-color: var(--material-primary-text-color);
+}

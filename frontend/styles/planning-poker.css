@@ -1,6 +1,26 @@
 
-.scrum-mainview {
-    padding: 1rem;
+/**
+ * Override Vaadin SplitLayout styles
+ */
+
+[part="splitter"] {
+    background-color: transparent !important;
+}
+
+[part="handle"] {
+    --material-background-color: var(--material-secondary-text-color) !important;
+}
+
+/**
+ * Definitions of own styles start here
+ */
+
+#pp-mainview {
+    /*padding: 1rem;*/
+}
+
+.pp-board {
+    padding: 1rem 1rem 3rem 1rem;
 }
 
 .pp-big-icon {
