@@ -4,6 +4,7 @@
 
 
 [![Java CI with Maven](https://github.com/martinvidec/planning-poker/actions/workflows/maven.yml/badge.svg?branch=master)](https://github.com/martinvidec/planning-poker/actions/workflows/maven.yml)
+[![CodeQL](https://github.com/martinvidec/planning-poker/actions/workflows/codeql.yml/badge.svg)](https://github.com/martinvidec/planning-poker/actions/workflows/codeql.yml)
 [![Maven Package](https://github.com/martinvidec/planning-poker/actions/workflows/maven-publish.yml/badge.svg?branch=master)](https://github.com/martinvidec/planning-poker/actions/workflows/maven-publish.yml)
 
 Example application with Vaadin Push featuring a planning poker implementation.
