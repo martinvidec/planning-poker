@@ -1,10 +1,7 @@
 package at.videc.opensource.scrum.state;
 
-import at.videc.opensource.scrum.broadcast.NoClue;
+import at.videc.opensource.scrum.broadcast.*;
 import at.videc.opensource.scrum.broadcast.constants.Action;
-import at.videc.opensource.scrum.broadcast.CoffeeBreak;
-import at.videc.opensource.scrum.broadcast.Estimation;
-import at.videc.opensource.scrum.broadcast.BroadcastMessage;
 
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
@@ -24,7 +21,9 @@ public class ApplicationStateHolder {
         applicationStateDto.getControlValues().put(Action.CLEAR, false);
         applicationStateDto.getControlValues().put(Action.NO_CLUE, false);
         applicationStateDto.getControlValues().put(Action.PARTICIPATE, false);
+        applicationStateDto.getControlValues().put(Action.STORY, false);
         applicationStateDto.setTargetTime(null);
+        applicationStateDto.setCurrentStoryUrl(null);
     }
 
     public void modify(BroadcastMessage broadcastMessage) {
@@ -46,6 +45,10 @@ public class ApplicationStateHolder {
                         -1.0f
                 );
                 return;
+            case STORY:
+                Story story = (Story) broadcastMessage.getMsgObject();
+                applicationStateDto.setCurrentStoryUrl(story.getUrl());
+                break;
             case COFFEE:
                 CoffeeBreak coffeeBreak = (CoffeeBreak) broadcastMessage.getMsgObject();
                 applicationStateDto.setTargetTime(LocalDateTime.now().plus(coffeeBreak.getDuration(), ChronoUnit.SECONDS));

@@ -1,9 +1,6 @@
 package at.videc.opensource.scrum.view;
 
-import at.videc.opensource.scrum.broadcast.BroadcastMessage;
-import at.videc.opensource.scrum.broadcast.CoffeeBreak;
-import at.videc.opensource.scrum.broadcast.Estimation;
-import at.videc.opensource.scrum.broadcast.NoClue;
+import at.videc.opensource.scrum.broadcast.*;
 import at.videc.opensource.scrum.broadcast.constants.Action;
 import at.videc.opensource.scrum.broadcast.helper.BroadcastHelper;
 import at.videc.opensource.scrum.config.ApplicationProperties;
@@ -19,6 +16,7 @@ import com.vaadin.flow.component.html.*;
 import com.vaadin.flow.component.icon.Icon;
 import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
+import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.page.Push;
 import com.vaadin.flow.component.splitlayout.SplitLayout;
 import com.vaadin.flow.component.textfield.TextField;
@@ -53,8 +51,9 @@ public class MainView extends BaseView {
     public static final String PP_COFFEE_COUNTDOWN_FORMAT = "%02d:%02d";
     private ApplicationProperties properties;
     private ApplicationStateDto applicationStateDto;
+    private Registration broadcasterRegistration;
 
-    private HorizontalLayout header = new HorizontalLayout();
+    private Div header = new Div();
     private HorizontalLayout inputs = new HorizontalLayout();
     private HorizontalLayout buttons = new HorizontalLayout();
     private Grid<EstimationResult> estimationGrid;
@@ -62,12 +61,15 @@ public class MainView extends BaseView {
 
     private Icon coffeeBreakIcon;
     private TextField playerNameField;
+    private TextField storyUrlField;
     private Span coffeeBreakDurationSpan;
+    private Anchor storyAnchor;
 
+
+    // control values
     private boolean showResults;
     private boolean coffeeBreakRunning;
 
-    private Registration broadcasterRegistration;
 
     @Autowired
     public MainView(ApplicationProperties properties) {
@@ -147,18 +149,24 @@ public class MainView extends BaseView {
         playerNameField = new TextField();
         playerNameField.setPlaceholder("Vorname");
 
+        storyUrlField = new TextField();
+        storyUrlField.setPlaceholder("URL zur Story");
+        storyUrlField.setEnabled(false);
+
         Button participateBtn = new Button("teilnehmen", event -> {
             if (playerNameField.isEmpty()) {
                 return;
             }
             playerNameField.setReadOnly(true);
             estimateBtns.forEach(button -> button.setEnabled(true));
+            storyUrlField.setEnabled(true);
             initClientApplicationState();
             broadcast(Action.PARTICIPATE);
         });
 
-        Button showAllBtn = new Button("anzeigen", event -> broadcast(Action.SHOW));
-        Button clearAllBtn = new Button("zurücksetzen", event -> broadcast(Action.CLEAR));
+        Button showAllBtn = new Button("Schätzung anzeigen", event -> broadcast(Action.SHOW));
+        Button clearAllBtn = new Button("Alles zurücksetzen", event -> broadcast(Action.CLEAR));
+        Button showStoryBtn = new Button("Story " + (storyAnchor.isVisible() ? "ausblenden" : "anzeigen"), event -> broadcast(Action.STORY));
 
         coffeeBreakIcon = new Icon(VaadinIcon.COFFEE);
         coffeeBreakIcon.setId(PP_COFFEE_ICON_ID);
@@ -172,7 +180,8 @@ public class MainView extends BaseView {
         coffeeBreakDurationSpan.setText(String.format(PP_COFFEE_COUNTDOWN_FORMAT, remainingTime.getMinute(), remainingTime.getSecond()));
         coffeeBreakDurationSpan.setVisible(false);
 
-        inputs.add(playerNameField, participateBtn, showAllBtn, clearAllBtn, coffeeBreakIcon, coffeeBreakDurationSpan);
+        inputs.add(playerNameField, participateBtn, storyUrlField, showStoryBtn, showAllBtn, clearAllBtn, coffeeBreakIcon, coffeeBreakDurationSpan);
+        inputs.setFlexGrow(1.0, storyUrlField);
     }
 
     private void initClientApplicationState() {
@@ -181,7 +190,11 @@ public class MainView extends BaseView {
     }
 
     private void buildHeader() {
-        header.add(new H1("Planning Poker"));
+        storyAnchor = new Anchor("#", "#");
+        storyAnchor.setVisible(false);
+        storyAnchor.setTarget("_blank");
+        storyAnchor.getClassNames().add("pp-story-anchor");
+        header.add(new H2("Planning Poker"), storyAnchor);
     }
 
     private LocalTime getRemainingTime() {
@@ -212,14 +225,19 @@ public class MainView extends BaseView {
             // then estimation payloads
             updateEstimations(applicationStateDto.getEstimationValues());
 
-            if(Boolean.TRUE.equals(applicationStateDto.getControlValues().get(Action.COFFEE)) && !coffeeBreakRunning) {
+            if (Boolean.TRUE.equals(applicationStateDto.getControlValues().get(Action.STORY))) {
+                storyAnchor.setHref(applicationStateDto.getCurrentStoryUrl());
+                storyAnchor.setText("Link zur Beschreibung (" + applicationStateDto.getCurrentStoryUrl() + ")");
+            }
+
+            if (Boolean.TRUE.equals(applicationStateDto.getControlValues().get(Action.COFFEE)) && !coffeeBreakRunning) {
                 // start timer
                 ui.getPage().executeJs("window.pp.startCountdown($0,$1,$2)",
                         DateTimeFormatter.ISO_DATE_TIME.format(applicationStateDto.getTargetTime()),
                         coffeeBreakDurationSpan.getId().get(),
                         "Finished");
                 coffeeBreakRunning = true;
-            } else if(Boolean.FALSE.equals(applicationStateDto.getControlValues().get(Action.COFFEE)) && coffeeBreakRunning){
+            } else if (Boolean.FALSE.equals(applicationStateDto.getControlValues().get(Action.COFFEE)) && coffeeBreakRunning) {
                 // remove timer only when running
                 ui.getPage().executeJs("pp.cancelCountdown()");
                 coffeeBreakRunning = false;
@@ -228,7 +246,7 @@ public class MainView extends BaseView {
     }
 
     private void updateControlValues(Map<Action, Boolean> controlPayloads) {
-        for (Map.Entry<Action, Boolean> entry: controlPayloads.entrySet()) {
+        for (Map.Entry<Action, Boolean> entry : controlPayloads.entrySet()) {
             switch (entry.getKey()) {
                 case COFFEE:
                     boolean haveCoffeBreak = entry.getValue();
@@ -238,6 +256,8 @@ public class MainView extends BaseView {
                 case SHOW:
                     showResults = entry.getValue();
                     break;
+                case STORY:
+                    storyAnchor.setVisible(entry.getValue());
                 default:
                     break;
             }
@@ -268,6 +288,9 @@ public class MainView extends BaseView {
                 break;
             case NO_CLUE:
                 broadcastMessage = new BroadcastMessage(action, new NoClue(playerNameField.getValue()));
+                break;
+            case STORY:
+                broadcastMessage = new BroadcastMessage(action, new Story(storyUrlField.getValue()));
                 break;
             default:
                 broadcastMessage = new BroadcastMessage(action, BroadcastMessage.EMPTY_MESSAGE_OBJECT);

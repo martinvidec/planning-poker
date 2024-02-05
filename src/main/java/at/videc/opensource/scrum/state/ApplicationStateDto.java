@@ -14,6 +14,7 @@ public class ApplicationStateDto implements Serializable {
     private Map<Action, Boolean> controlValues;
     private String playerName;
     private LocalDateTime targetTime;
+    private String currentStoryUrl;
 
     public ApplicationStateDto() {
         estimationValues = new HashMap<>();
@@ -24,6 +25,8 @@ public class ApplicationStateDto implements Serializable {
         controlValues.put(Action.PARTICIPATE, false);
         controlValues.put(Action.CLEAR, false);
         controlValues.put(Action.SHOW, false);
+        controlValues.put(Action.STORY, false);
+
     }
 
     public Map<String, Float> getEstimationValues() {
@@ -60,5 +63,13 @@ public class ApplicationStateDto implements Serializable {
 
     public void setTargetTime(LocalDateTime targetTime) {
         this.targetTime = targetTime;
+    }
+
+    public String getCurrentStoryUrl() {
+        return currentStoryUrl;
+    }
+
+    public void setCurrentStoryUrl(String currentStoryUrl) {
+        this.currentStoryUrl = currentStoryUrl;
     }
 }

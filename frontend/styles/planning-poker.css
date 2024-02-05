@@ -1,18 +1,6 @@
 
 /**
- * Override Vaadin SplitLayout styles
- */
-
-[part="splitter"] {
-    background-color: transparent !important;
-}
-
-[part="handle"] {
-    --material-background-color: var(--material-secondary-text-color) !important;
-}
-
-/**
- * Definitions of own styles start here
+ * Definitions of own styles
  */
 
 #pp-mainview {
@@ -26,6 +14,15 @@
 .pp-big-icon {
     width: 3rem;
     height: 3rem;
+}
+
+.pp-story-anchor {
+    color: var(--material-primary-text-color);
+    font-family: var(--material-font-family);
+    font-size: var(--material-button-font-size);
+    text-decoration: none;
+    padding-bottom: 1rem;
+    display: block;
 }
 
 .pp-card {

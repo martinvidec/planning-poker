@@ -6,5 +6,7 @@ public enum Action {
     COFFEE,
     PARTICIPATE,
     CLEAR,
-    SHOW
+    SHOW,
+
+    STORY
 }
