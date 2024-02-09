@@ -2,6 +2,9 @@ package at.videc.opensource.scrum.state;
 
 import at.videc.opensource.scrum.broadcast.*;
 import at.videc.opensource.scrum.broadcast.constants.Action;
+import at.videc.opensource.scrum.state.control.BooleanContext;
+import at.videc.opensource.scrum.state.control.StoryContext;
+import at.videc.opensource.scrum.state.control.CoffeeBreakContext;
 
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
@@ -16,49 +19,45 @@ public class ApplicationStateHolder {
 
     public void reset() {
         applicationStateDto.getEstimationValues().clear();
-        applicationStateDto.getControlValues().put(Action.COFFEE, false);
-        applicationStateDto.getControlValues().put(Action.SHOW, false);
-        applicationStateDto.getControlValues().put(Action.CLEAR, false);
-        applicationStateDto.getControlValues().put(Action.NO_CLUE, false);
-        applicationStateDto.getControlValues().put(Action.PARTICIPATE, false);
-        applicationStateDto.getControlValues().put(Action.STORY, false);
-        applicationStateDto.setTargetTime(null);
-        applicationStateDto.setCurrentStoryUrl(null);
+        applicationStateDto.getControlValues().put(Action.COFFEE, CoffeeBreakContext.create(false));
+        applicationStateDto.getControlValues().put(Action.SHOW, BooleanContext.create(false));
+        applicationStateDto.getControlValues().put(Action.CLEAR, BooleanContext.create(false));
+        applicationStateDto.getControlValues().put(Action.NO_CLUE, BooleanContext.create(false));
+        applicationStateDto.getControlValues().put(Action.PARTICIPATE, BooleanContext.create(false));
+        applicationStateDto.getControlValues().put(Action.STORY, StoryContext.create(false));
     }
 
     public void modify(BroadcastMessage broadcastMessage) {
         switch (broadcastMessage.getAction()) {
             case CLEAR:
                 reset();
-                return;
+                break;
             case ESTIMATE:
                 Estimation estimation = (Estimation) broadcastMessage.getMsgObject();
                 applicationStateDto.getEstimationValues().put(
-                        estimation.getPlayerName(),
+                        estimation.getPlayer(),
                         estimation.getEstimated()
                 );
-                return;
+                break;
             case NO_CLUE:
                 NoClue noClue = (NoClue) broadcastMessage.getMsgObject();
                 applicationStateDto.getEstimationValues().put(
-                        noClue.getPlayerName(),
+                        noClue.getPlayer(),
                         -1.0f
                 );
-                return;
+                break;
             case STORY:
                 Story story = (Story) broadcastMessage.getMsgObject();
-                applicationStateDto.setCurrentStoryUrl(story.getUrl());
+                applicationStateDto.getControlValues().put(broadcastMessage.getAction(), StoryContext.from(story));
                 break;
             case COFFEE:
                 CoffeeBreak coffeeBreak = (CoffeeBreak) broadcastMessage.getMsgObject();
-                applicationStateDto.setTargetTime(LocalDateTime.now().plus(coffeeBreak.getDuration(), ChronoUnit.SECONDS));
+                applicationStateDto.getControlValues().put(broadcastMessage.getAction(), CoffeeBreakContext.from(coffeeBreak));
                 break;
             default:
+                applicationStateDto.getControlValues().put(broadcastMessage.getAction(), BooleanContext.create(true));
                 break;
         }
-
-        // add up control Values
-        applicationStateDto.getControlValues().put(broadcastMessage.getAction(), true);
     }
 
     public ApplicationStateDto getApplicationStateDto() {

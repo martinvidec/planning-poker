@@ -1,19 +1,24 @@
 package at.videc.opensource.scrum.broadcast;
 
 import at.videc.opensource.scrum.broadcast.base.MessageObject;
+import at.videc.opensource.scrum.domain.Player;
 
 public class Estimation implements MessageObject {
 
-    private final String playerName;
+    private final Player player;
     private final Float estimated;
 
-    public Estimation(String playerName, Float estimated) {
-        this.playerName = playerName;
+    public Estimation(Player player, Float estimated) {
+        this.player = player;
         this.estimated = estimated;
     }
 
-    public String getPlayerName() {
-        return playerName;
+    public Estimation(String playerName, Float estimated) {
+        this(new Player(playerName), estimated);
+    }
+
+    public Player getPlayer() {
+        return player;
     }
 
     public Float getEstimated() {

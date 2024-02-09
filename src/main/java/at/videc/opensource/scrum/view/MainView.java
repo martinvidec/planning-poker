@@ -4,7 +4,12 @@ import at.videc.opensource.scrum.broadcast.*;
 import at.videc.opensource.scrum.broadcast.constants.Action;
 import at.videc.opensource.scrum.broadcast.helper.BroadcastHelper;
 import at.videc.opensource.scrum.config.ApplicationProperties;
+import at.videc.opensource.scrum.domain.Player;
 import at.videc.opensource.scrum.state.ApplicationStateDto;
+import at.videc.opensource.scrum.state.control.BooleanContext;
+import at.videc.opensource.scrum.state.control.CoffeeBreakContext;
+import at.videc.opensource.scrum.state.control.ControlContext;
+import at.videc.opensource.scrum.state.control.StoryContext;
 import at.videc.opensource.scrum.style.StyleConstants;
 import at.videc.opensource.scrum.view.base.BaseView;
 import com.vaadin.flow.component.*;
@@ -23,6 +28,7 @@ import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.router.Route;
 import com.vaadin.flow.shared.Registration;
 import com.vaadin.flow.theme.Theme;
+import com.vaadin.flow.theme.lumo.Lumo;
 import com.vaadin.flow.theme.material.Material;
 import org.springframework.beans.factory.annotation.Autowired;
 
@@ -40,24 +46,22 @@ import java.util.stream.Collectors;
  */
 @Route("")
 @JavaScript("./js/countdown.js")
-@Theme(value = Material.class, variant = Material.DARK)
 @CssImport(value = "./styles/planning-poker.css")
 @CssImport(value = "./styles/planning-poker-mixin.css", themeFor = "vaadin-split-layout")
-@Push
 public class MainView extends BaseView {
 
     public static final String PP_COFFEE_ICON_ID = "pp-coffee-icon";
     public static final String PP_COFFEE_COUNTDOWN_ID = "pp-coffee-countdown";
     public static final String PP_COFFEE_COUNTDOWN_FORMAT = "%02d:%02d";
-    private ApplicationProperties properties;
+    private final ApplicationProperties properties;
     private ApplicationStateDto applicationStateDto;
     private Registration broadcasterRegistration;
 
-    private Div header = new Div();
-    private HorizontalLayout inputs = new HorizontalLayout();
-    private HorizontalLayout buttons = new HorizontalLayout();
-    private Grid<EstimationResult> estimationGrid;
-    private List<Button> estimateBtns = new ArrayList<>();
+    private final Div header = new Div();
+    private final HorizontalLayout inputs = new HorizontalLayout();
+    private final HorizontalLayout buttons = new HorizontalLayout();
+    private final Grid<EstimationResult> estimationGrid = new Grid<>();
+    private final List<Button> estimateBtns = new ArrayList<>();
 
     private Icon coffeeBreakIcon;
     private TextField playerNameField;
@@ -99,7 +103,6 @@ public class MainView extends BaseView {
     }
 
     private void buildEstimationGrid() {
-        estimationGrid = new Grid<>();
         estimationGrid.setId("pp-estimation-grid");
         estimationGrid.setItems(Collections.emptySet());
         estimationGrid.addColumn(EstimationResult::getPlayerName).setHeader("Spieler").setFooter(createPlayerFooter());
@@ -186,7 +189,6 @@ public class MainView extends BaseView {
 
     private void initClientApplicationState() {
         applicationStateDto = new ApplicationStateDto();
-        applicationStateDto.setPlayerName(playerNameField.getValue());
     }
 
     private void buildHeader() {
@@ -215,9 +217,7 @@ public class MainView extends BaseView {
     }
 
     private void updateView(ApplicationStateDto applicationStateDto, UI ui) {
-        String playerName = this.applicationStateDto.getPlayerName();
         this.applicationStateDto = applicationStateDto;
-        this.applicationStateDto.setPlayerName(playerName);
 
         ui.access(() -> {
             // first control payloads
@@ -225,50 +225,58 @@ public class MainView extends BaseView {
             // then estimation payloads
             updateEstimations(applicationStateDto.getEstimationValues());
 
-            if (Boolean.TRUE.equals(applicationStateDto.getControlValues().get(Action.STORY))) {
-                storyAnchor.setHref(applicationStateDto.getCurrentStoryUrl());
-                storyAnchor.setText("Link zur Beschreibung (" + applicationStateDto.getCurrentStoryUrl() + ")");
+            if (applicationStateDto.getControlValues().get(Action.STORY) instanceof StoryContext
+                    && ((StoryContext) applicationStateDto.getControlValues().get(Action.STORY)).getCtxObject()
+            ) {
+                StoryContext storyContext = (StoryContext) applicationStateDto.getControlValues().get(Action.STORY);
+                storyAnchor.setHref(storyContext.getStoryUrl());
+                storyAnchor.setText("Link zur Beschreibung (" + storyContext.getStoryUrl() + ")");
             }
 
-            if (Boolean.TRUE.equals(applicationStateDto.getControlValues().get(Action.COFFEE)) && !coffeeBreakRunning) {
-                // start timer
-                ui.getPage().executeJs("window.pp.startCountdown($0,$1,$2)",
-                        DateTimeFormatter.ISO_DATE_TIME.format(applicationStateDto.getTargetTime()),
-                        coffeeBreakDurationSpan.getId().get(),
-                        "Finished");
-                coffeeBreakRunning = true;
-            } else if (Boolean.FALSE.equals(applicationStateDto.getControlValues().get(Action.COFFEE)) && coffeeBreakRunning) {
-                // remove timer only when running
-                ui.getPage().executeJs("pp.cancelCountdown()");
-                coffeeBreakRunning = false;
+            if(applicationStateDto.getControlValues().get(Action.COFFEE) instanceof CoffeeBreakContext) {
+                CoffeeBreakContext coffeeBreakContext = (CoffeeBreakContext) applicationStateDto.getControlValues().get(Action.COFFEE);
+                if (Boolean.TRUE.equals(coffeeBreakContext.getCtxObject()) && !coffeeBreakRunning) {
+                    // start timer
+                    ui.getPage().executeJs("window.pp.startCountdown($0,$1,$2)",
+                            DateTimeFormatter.ISO_DATE_TIME.format(coffeeBreakContext.getTargetTime()),
+                            coffeeBreakDurationSpan.getId().get(),
+                            "Finished");
+                    coffeeBreakRunning = true;
+                } else if (Boolean.FALSE.equals(coffeeBreakContext.getCtxObject() && coffeeBreakRunning)) {
+                    // remove timer only when running
+                    ui.getPage().executeJs("pp.cancelCountdown()");
+                    coffeeBreakRunning = false;
+                }
             }
         });
     }
 
-    private void updateControlValues(Map<Action, Boolean> controlPayloads) {
-        for (Map.Entry<Action, Boolean> entry : controlPayloads.entrySet()) {
+    private void updateControlValues(Map<Action, ControlContext<?>> controlPayloads) {
+        for (Map.Entry<Action, ControlContext<?>> entry : controlPayloads.entrySet()) {
             switch (entry.getKey()) {
                 case COFFEE:
-                    boolean haveCoffeBreak = entry.getValue();
+                    boolean haveCoffeBreak = ((CoffeeBreakContext) entry.getValue()).getCtxObject();
                     coffeeBreakIcon.setVisible(haveCoffeBreak);
                     coffeeBreakDurationSpan.setVisible(haveCoffeBreak);
                     break;
                 case SHOW:
-                    showResults = entry.getValue();
+                    showResults = ((BooleanContext) entry.getValue()).getCtxObject();
                     break;
                 case STORY:
-                    storyAnchor.setVisible(entry.getValue());
+                    storyAnchor.setVisible(((StoryContext) entry.getValue()).getCtxObject());
                 default:
                     break;
             }
         }
     }
 
-    private void updateEstimations(Map<String, Float> estimationPayloads) {
-        estimationGrid.setItems(
-                estimationPayloads.entrySet().stream()
-                        .map(entry -> new EstimationResult(entry.getKey(), entry.getValue()))
-        );
+    private void updateEstimations(Map<Player, Float> estimationPayloads) {
+        estimationGrid.setItems(query -> {
+           return estimationPayloads.entrySet().stream()
+                   .map(entry -> new EstimationResult(entry.getKey().getName(), entry.getValue()))
+                   .skip(query.getOffset())
+                   .limit(query.getLimit());
+        });
         // TODO: update footer via event directly from grid when items change
         estimationGrid.getColumns().get(0).setFooter(createPlayerFooter());
         estimationGrid.getColumns().get(1).setFooter(createResultFooter());
@@ -281,7 +289,6 @@ public class MainView extends BaseView {
 
     private void broadcast(Action action) {
         BroadcastMessage broadcastMessage;
-
         switch (action) {
             case COFFEE:
                 broadcastMessage = new BroadcastMessage(action, new CoffeeBreak(properties.getCoffeeBreakDuration()));
